@@ -1,0 +1,135 @@
+esphome:
+  name: "alarm-panel"
+  friendly_name: "alarm-panel"
+
+esp32:
+  board: nodemcu-32s
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "tpBl4yhEfKCgTAh33ftrhsvG1kHc5HrxHJtUV5uUuoU="
+
+ota:
+  password: "629fe3d6315442679212d207c06c4060"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Ap Fallback Hotspot"
+    password: "xHxEJF8WbVXW"
+
+
+light:
+  # Onboard LED
+  - platform: status_led
+    name: "Onboard LED"
+    id: "Onboard_LED"
+    pin: 
+      number: GPIO2
+    effects:
+      - strobe:
+          name: Slow Flash        
+          colors:
+            - state: True
+              duration: 500ms
+            - state: False
+              duration: 500ms
+      - strobe:
+          name: Fast Flash
+          colors:
+            - state: True
+              duration: 200ms
+            - state: False
+              duration: 200ms
+              
+sensor:
+    # Wifi Signal
+  - platform: wifi_signal # Reports the WiFi signal strength/RSSI in dB
+    name: "WiFi Signal dB"
+    id: wifi_signal_db
+    update_interval: 300s
+    entity_category: "diagnostic"
+    internal: true
+  - platform: copy # Reports the WiFi signal strength in %
+    source_id: wifi_signal_db
+    name: "WiFi Signal Percent"
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "%"
+    entity_category: "diagnostic"   
+
+matrix_keypad:
+  id: keypad
+  rows:
+    - pin: GPIO18
+    - pin: GPIO5
+    - pin: GPIO17
+    - pin: GPIO16    
+  columns:
+    - pin: GPIO23
+    - pin: GPIO22
+    - pin: GPIO21
+    - pin: GPIO19
+  keys: "123A456B789C*0#D"
+  has_diodes: false
+
+binary_sensor:
+  - platform: matrix_keypad
+    keypad_id: keypad
+    id: keypadA
+    name: keypadA
+    key: A
+  - platform: matrix_keypad
+    keypad_id: keypad
+    id: keypadB
+    name: keypadB  
+    key: B
+  - platform: matrix_keypad
+    keypad_id: keypad
+    id: keypadC
+    name: keypadC 
+    key: C
+  - platform: matrix_keypad
+    keypad_id: keypad
+    id: keypadD
+    name: keypadD
+    key: D    
+
+  - platform: gpio
+    pin:
+      number: GPIO0
+      inverted: true
+    name: "Onboard button"
+    id: onboard_button    
+
+
+key_collector:
+  - id: pincode_reader
+    source_id: keypad
+    end_keys: "#"
+    end_key_required: true 
+    clear_keys: "*"
+    allowed_keys: "0123456789"
+    timeout: 60s
+    on_progress:
+      - logger.log:
+          format: "input progress: '%s', started by '%c'"
+          args: [ 'x.c_str()', "(start == 0 ? '~' : start)" ]
+    on_result:
+      - logger.log:
+          format: "input result: '%s', started by '%c', ended by '%c'"
+          args: [ 'x.c_str()', "(start == 0 ? '~' : start)", "(end == 0 ? '~' : end)" ]
+    on_timeout:
+      - logger.log:
+          format: "input timeout: '%s', started by '%c'"
+          args: [ 'x.c_str()', "(start == 0 ? '~' : start)" ]
+          
+captive_portal:
+    
