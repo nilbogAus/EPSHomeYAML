@@ -25,6 +25,12 @@ wifi:
     ssid: "Ap Fallback Hotspot"
     password: "xHxEJF8WbVXW"
 
+output:
+    # external leds
+  - id: backlight_output
+    platform: gpio
+    pin: GPIO15
+
 
 light:
   # Onboard LED
@@ -48,6 +54,10 @@ light:
               duration: 200ms
             - state: False
               duration: 200ms
+  - platform: binary
+    name: "Display Backlight"
+    id: Backlight
+    output: backlight_output
               
 sensor:
     # Wifi Signal
@@ -74,11 +84,9 @@ binary_sensor:
     id: onboard_button
 
 #ST7796 display
-font:
-  - file: "gfonts://Roboto"
-    id: roboto
-    size: 25
+
 spi:
+  id: display_spi
   clk_pin: GPIO14
   mosi_pin: GPIO13
   miso_pin: GPIO12
@@ -86,11 +94,27 @@ spi:
 display:
   - platform: ili9xxx
     model: ST7796
+    spi_id: display_spi
     dc_pin: GPIO27
     reset_pin: GPIO33
-    update_interval: 5s
+    cs_pin: GPIO26
+    dimensions: 220x480  #320x480 not possible because of memory limitations
+    rotation: 90
+    color_palette: GRAYSCALE    
     lambda: |-
-      it.print(0, 0, id(roboto), "Hello World!");
+      it.fill(COLOR_OFF); // Turn the whole display off.
+      it.print(10, 10, id(roboto), id(my_red), TextAlign::TOP_LEFT, "Hello World!");
+
+font:
+  - file: "gfonts://Roboto"
+    id: roboto
+    size: 25
+
+color:
+  - id: my_red
+    red: 100%
+    green: 0%
+    blue: 0%   
 
 captive_portal:
     
