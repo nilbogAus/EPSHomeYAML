@@ -90,13 +90,11 @@ binary_sensor:
       - component.update: my_display
 
 #ST7796 display
-
 spi:
   id: display_spi
   clk_pin: GPIO14
   mosi_pin: GPIO13
   miso_pin: GPIO12 
-
 
 display:
   - platform: ili9xxx
@@ -106,7 +104,7 @@ display:
     dc_pin: GPIO27
     reset_pin: GPIO33
     cs_pin: GPIO26
-    dimensions: 320x330  #320x480 not possible because of memory limitations
+    dimensions: 320x345 #320x480 not possible because of ESP32 memory limitations
     color_palette: NONE 
     data_rate: 80MHz
     pages:
@@ -124,13 +122,15 @@ display:
             it.horizontal_line(shift_x+210,i+shift_y,50, my_blue.fade_to_white(i));
             it.horizontal_line(shift_x+260,i+shift_y,50, my_blue.fade_to_black(i));
           }
-          it.rectangle(shift_x+ 0, 0+shift_y, shift_x+ 310, 256+shift_y, my_yellow);
-          it.rectangle(0, 0, it.get_width(), it.get_height(), my_blue);
+          it.filled_rectangle(0, it.get_height()-30, it.get_width(),it.get_height()-20, my_red);
+          it.filled_rectangle(0, it.get_height()-20, it.get_width(),it.get_height()-10, my_green);
+          it.filled_rectangle(0, it.get_height()-10, it.get_width(),it.get_height()-1, my_blue);
+          it.rectangle(0, 0, it.get_width(), it.get_height(), my_yellow);
       - id: page2
         lambda: |-
           it.fill(COLOR_OFF); // Turn the whole display off.
           it.print(10, 10, id(roboto), id(my_red), TextAlign::TOP_LEFT, "Hello World!");
-          it.rectangle(0, 0, 320, 330);          
+          it.rectangle(0, 0, get_width(), get_height());          
 
 color:
   - id: my_blue
