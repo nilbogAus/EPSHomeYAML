@@ -1,2 +1,2 @@
 # EPSHomeYAML
-Yaml files for configuring my Arduino prjects
+Yaml files for configuring my ESP ESPhome prjects
