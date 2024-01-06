@@ -46,6 +46,10 @@ wifi:
     ssid: "Ap Fallback Hotspot"
     password: "xHxEJF8WbVXW"
 
+time:
+  - platform: homeassistant
+    id: homeassistant_time    
+
 output:
     # external leds
   - id: backlight_output
@@ -102,12 +106,16 @@ sensor:
   - platform: debug
     free:
       name: "Heap Free"
+      id: HeapFree
     block:
       name: "Heap Max Block"
+      id: HeapMaxBlock
     loop_time:
       name: "Loop Time"
+      id: LoopTime
     psram:
-      name: "Free PSRAM"     
+      name: "Free PSRAM"
+      id: freePSRAM     
   - platform: internal_temperature
     name: "Internal Temperature" 
     id: InternalTemp     
@@ -172,12 +180,20 @@ display:
           it.fill(COLOR_OFF); // Turn the whole display off.
           it.print(10, 10, id(roboto), id(my_red), TextAlign::TOP_LEFT, "Page D");
           it.rectangle(0, 0, it.get_width(), it.get_height());              
-      - id: pageDebug
+      - id: pageDebug1
         lambda: |-
             it.fill(COLOR_OFF); // Turn the whole display off.
-            it.printf(5, 1, id(roboto), id(my_white), TextAlign::TOP_LEFT, "%.1f° :Internal Temp", id(InternalTemp).state);  
+            it.printf(0, 1, id(roboto), id(my_white), TextAlign::TOP_LEFT, "%.1f° :Internal Temp", id(InternalTemp).state);  
             it.printf(0, 25, id(roboto), id(my_white), TextAlign::TOP_LEFT, "%.0f%% :wifi signal", id(wifi_signal_pct).state);  
-            // it.printf(5, 50, id(roboto), id(my_white), TextAlign::TOP_LEFT, id(DeviceInfo)); 
+            it.printf(0, 50, id(roboto), id(my_white), TextAlign::TOP_LEFT, "%s", id(DeviceInfo).state.c_str()); 
+            it.printf(0, 75, id(roboto), id(my_white), TextAlign::TOP_LEFT, "%.0fB Heap Free", id(HeapFree).state); 
+            it.printf(0, 100, id(roboto), id(my_white), TextAlign::TOP_LEFT, "%.0fB Heap Max Block", id(HeapMaxBlock).state); 
+            it.printf(0, 125, id(roboto), id(my_white), TextAlign::TOP_LEFT, "%.0fms Loop Time", id(LoopTime).state); 
+            it.printf(0, 150, id(roboto), id(my_white), TextAlign::TOP_LEFT, "%.0fb Free PSRAM", id(freePSRAM).state); 
+            it.strftime(0, 175, id(roboto), "%H:%M:%S", id(homeassistant_time).now());
+
+      - id: pageDebug2
+        lambda: |-
             it.graph(0, 75, id(h24_graph));
             
 
@@ -200,6 +216,8 @@ font:
   - file: "gfonts://Roboto"
     id: roboto
     size: 25
+    glyphs: '|!"%()+=,-_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz'
+
 
 touchscreen:
   platform: xpt2046
@@ -301,15 +319,28 @@ binary_sensor:
     name: "Onboard button"
     id: onboard_button
     on_press: 
-      - display.page.show: pageDebug
-      - component.update: my_display
+      then:
+        if:
+          condition:
+            display.is_displaying_page: pageDebug1
+          then:      
+            display.page.show: pageDebug2
+          else: 
+            display.page.show: pageDebug1
 
 button:
   - platform: template
     name: Debug
+    entity_category: "diagnostic"     
     on_press:
-      - display.page.show: pageDebug
-      - component.update: my_display      
+      then:
+        if:
+          condition:
+            display.is_displaying_page: pageDebug1
+          then:      
+            display.page.show: pageDebug2
+          else: 
+            display.page.show: pageDebug1
 
 key_collector:
   - id: pincode_reader
