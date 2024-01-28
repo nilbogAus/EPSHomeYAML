@@ -1,16 +1,15 @@
 esphome:
-  name: "alarm-panel"
-  friendly_name: "alarm-panel"
+  name: esphome-web-9d4d29
+  friendly_name: alarm-panel-backdoor
 
 esp32:
   board: nodemcu-32s
   framework:
     type: esp-idf
-    version: recommended
+   # version: recommended
     # Custom sdkconfig options
     sdkconfig_options:
-      #COMPILER_OPTIMIZATION_SIZE: y    
-      CONFIG_COMPILER_OPTIMIZATION_PERF: y
+      COMPILER_OPTIMIZATION_SIZE: y    
 
 # Enable logging
 logger:
@@ -18,21 +17,10 @@ logger:
   logs:
     component: ERROR  # To disable "Component display took a long time for an operation (0.09 s)."
 
-debug:
-  update_interval: 300s
-
-text_sensor:
-  - platform: debug
-    device:
-      name: "Device Info"
-      id: DeviceInfo
-    reset_reason:
-      name: "Reset Reason"
-
 # Enable Home Assistant API
 api:
   encryption:
-    key: "tpBl4yhEfKCgTAh33ftrhsvG1kHc5HrxHJtUV5uUuoU="
+    key: "BysUHdBou2rJs+vWwHhjfR7S8on4iZAk9ygnCyldZAk="
 
 ota:
   password: "629fe3d6315442679212d207c06c4060"
@@ -43,48 +31,46 @@ wifi:
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
-    ssid: "Ap Fallback Hotspot"
-    password: "xHxEJF8WbVXW"
+    ssid: "Esphome-Web-9D4D29"
+    password: "UlcnnFZkrkiH"
+
+captive_portal:
+    
+
+
+debug:
+  update_interval: 300s
+
+text_sensor:
+  - platform: debug
+    device:
+      name: "Device Info"
+      id: DeviceInfo
+    reset_reason:
+      name: "Reset Reason"   
+
+  - platform: homeassistant
+    name: "Alarm State"
+    id: homeassistant_alarm
+    entity_id: alarm_control_panel.home_alarm 
 
 time:
   - platform: homeassistant
     id: homeassistant_time    
 
 output:
-    # external leds
   - id: backlight_output
     platform: gpio
     pin: GPIO25
 
-
 light:
-  # Onboard LED
-  - platform: status_led
-    name: "Onboard LED"
-    id: "Onboard_LED"
-    pin: 
-      number: GPIO2
-    effects:
-      - strobe:
-          name: Slow Flash        
-          colors:
-            - state: True
-              duration: 500ms
-            - state: False
-              duration: 500ms
-      - strobe:
-          name: Fast Flash
-          colors:
-            - state: True
-              duration: 200ms
-            - state: False
-              duration: 200ms
   - platform: binary
     name: "Display Backlight"
     id: Backlight
     restore_mode: ALWAYS_ON
     output: backlight_output
-              
+
+
 sensor:
     # Wifi Signal
   - platform: wifi_signal # Reports the WiFi signal strength/RSSI in dB
@@ -100,7 +86,7 @@ sensor:
     filters:
       - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
     unit_of_measurement: "%"
-    entity_category: "diagnostic"  
+    entity_category: "diagnostic" 
     
     #debug
   - platform: debug
@@ -118,14 +104,14 @@ sensor:
       id: freePSRAM     
   - platform: internal_temperature
     name: "Internal Temperature" 
-    id: InternalTemp     
+    id: InternalTemp   
 
 #ST7796 display
 spi:
   - id: display_spi
     clk_pin: GPIO14
     mosi_pin: GPIO13
-    miso_pin: GPIO12 
+    miso_pin: GPIO12  
   - id: touch_spi
     clk_pin: GPIO18
     mosi_pin: GPIO23
@@ -139,134 +125,135 @@ display:
     dc_pin: GPIO27
     reset_pin: GPIO33
     cs_pin: GPIO15
-    dimensions:  #320x480 not possible because of ESP32 memory limitations
+    dimensions:  #320x480 only possible with psram
       width: 320
-      height: 345
-      offset_height: 65
+      height: 480
     rotation: 180
     color_palette: NONE 
     data_rate: 80MHz
     pages:
       - id: pageA
         lambda: |-
-          int shift_x = (it.get_width()-310)/2;
-          int shift_y = (it.get_height()-256)/2;
-          for(auto i = 0; i<256; i++) {
-            it.horizontal_line(shift_x+  0,i+shift_y,50, my_red.fade_to_white(i));
-            it.horizontal_line(shift_x+ 50,i+shift_y,50, my_red.fade_to_black(i));
-
-            it.horizontal_line(shift_x+105,i+shift_y,50, my_green.fade_to_white(i));
-            it.horizontal_line(shift_x+155,i+shift_y,50, my_green.fade_to_black(i));
-
-            it.horizontal_line(shift_x+210,i+shift_y,50, my_blue.fade_to_white(i));
-            it.horizontal_line(shift_x+260,i+shift_y,50, my_blue.fade_to_black(i));
+          it.fill(COLOR_OFF);
+          if (id(homeassistant_alarm).state=="disarmed"){
+            it.image(130, 90, id(img_BellOff));
+            it.print(160, 160, id(roboto), id(col_green), TextAlign::CENTER_HORIZONTAL, "Disarmed");
+          } else if (id(homeassistant_alarm).state=="arming"){
+            it.image(130, 90, id(img_Bell));
+            it.print(160, 160, id(roboto), id(col_yellow), TextAlign::CENTER_HORIZONTAL, "Arming");
+          } else if (id(homeassistant_alarm).state=="triggered"){
+            it.image(130, 90, id(img_BellRing));
+            it.print(160, 160, id(roboto), id(col_red), TextAlign::CENTER_HORIZONTAL, "Triggered");
+          } else if (id(homeassistant_alarm).state.substr(0,5)=="armed"){
+            it.image(130, 90, id(img_Bell));
+            it.print(160, 160, id(roboto), id(col_red), TextAlign::CENTER_HORIZONTAL, id(homeassistant_alarm).state.c_str());
+          } else {
+            it.print(160, 200, id(roboto), id(col_white), TextAlign::CENTER_HORIZONTAL, id(homeassistant_alarm).state.c_str());
           }
-          it.filled_rectangle(0, it.get_height()-30, it.get_width(),it.get_height()-20, my_red);
-          it.filled_rectangle(0, it.get_height()-20, it.get_width(),it.get_height()-10, my_green);
-          it.filled_rectangle(0, it.get_height()-10, it.get_width(),it.get_height()-1, my_blue);
-          it.rectangle(0, 0, it.get_width(), it.get_height(), my_yellow);
+          it.strftime(0, 450, id(roboto), col_blue, "%H:%M:%S", id(homeassistant_time).now());
       - id: pageB
         lambda: |-
           it.fill(COLOR_OFF); // Turn the whole display off.
-          it.print(10, 10, id(roboto), id(my_red), TextAlign::TOP_LEFT, "Hello World!");
+          it.print(10, 10, id(roboto), id(col_red), TextAlign::TOP_LEFT, "Hello World!");
           it.rectangle(0, 0, it.get_width(), it.get_height());      
       - id: pageC
         lambda: |-
           it.fill(COLOR_OFF); // Turn the whole display off.
-          it.print(10, 10, id(roboto), id(my_red), TextAlign::TOP_LEFT, "Page C");
+          it.print(10, 10, id(roboto), id(col_red), TextAlign::TOP_LEFT, "Page C");
           it.rectangle(0, 0, it.get_width(), it.get_height()); 
       - id: pageD
         lambda: |-
-          it.fill(COLOR_OFF); // Turn the whole display off.
-          it.print(10, 10, id(roboto), id(my_red), TextAlign::TOP_LEFT, "Page D");
-          it.rectangle(0, 0, it.get_width(), it.get_height());              
+          int shift_x = (it.get_width()-310)/2;
+          int shift_y = (it.get_height()-470)/2;
+          for(auto i = 0; i<470; i++) {
+            it.horizontal_line(shift_x+  0,i+shift_y,50, col_red.fade_to_white(i));
+            it.horizontal_line(shift_x+ 50,i+shift_y,50, col_red.fade_to_black(i));
+
+            it.horizontal_line(shift_x+105,i+shift_y,50, col_green.fade_to_white(i));
+            it.horizontal_line(shift_x+155,i+shift_y,50, col_green.fade_to_black(i));
+
+            it.horizontal_line(shift_x+210,i+shift_y,50, col_blue.fade_to_white(i));
+            it.horizontal_line(shift_x+260,i+shift_y,50, col_blue.fade_to_black(i));
+          }
+          it.rectangle(0, 0, it.get_width(), it.get_height(), col_yellow);             
       - id: pageDebug1
         lambda: |-
             it.fill(COLOR_OFF); // Turn the whole display off.
-            it.printf(0, 1, id(roboto), id(my_white), TextAlign::TOP_LEFT, "%.1f° :Internal Temp", id(InternalTemp).state);  
-            it.printf(0, 25, id(roboto), id(my_white), TextAlign::TOP_LEFT, "%.0f%% :wifi signal", id(wifi_signal_pct).state);  
-            it.printf(0, 50, id(roboto), id(my_white), TextAlign::TOP_LEFT, "%s", id(DeviceInfo).state.c_str()); 
-            it.printf(0, 75, id(roboto), id(my_white), TextAlign::TOP_LEFT, "%.0fB Heap Free", id(HeapFree).state); 
-            it.printf(0, 100, id(roboto), id(my_white), TextAlign::TOP_LEFT, "%.0fB Heap Max Block", id(HeapMaxBlock).state); 
-            it.printf(0, 125, id(roboto), id(my_white), TextAlign::TOP_LEFT, "%.0fms Loop Time", id(LoopTime).state); 
-            it.printf(0, 150, id(roboto), id(my_white), TextAlign::TOP_LEFT, "%.0fb Free PSRAM", id(freePSRAM).state); 
-            it.strftime(0, 175, id(roboto), "%H:%M:%S", id(homeassistant_time).now());
+            it.printf(0, 1, id(roboto), id(col_white), TextAlign::TOP_LEFT, "%.1f° :Internal Temp", id(InternalTemp).state);  
+            it.printf(0, 25, id(roboto), id(col_white), TextAlign::TOP_LEFT, "%.0f%% :wifi signal", id(wifi_signal_pct).state);  
+            it.printf(0, 75, id(roboto), id(col_white), TextAlign::TOP_LEFT, "%.0fKb Heap Free", id(HeapFree).state/1024); 
+            it.printf(0, 100, id(roboto), id(col_white), TextAlign::TOP_LEFT, "%.0fKb Heap Max Block", id(HeapMaxBlock).state/1024); 
+            it.printf(0, 125, id(roboto), id(col_white), TextAlign::TOP_LEFT, "%.0fms Loop Time", id(LoopTime).state); 
+            it.printf(0, 50, id(roboto), id(col_white), TextAlign::TOP_LEFT, "%.0fKb Free PSRAM", id(freePSRAM).state/1024); 
 
+            int shift_y = 150;
+            std::string str = id(DeviceInfo).state;
+            std::vector<std::string> v;
+            char * token;
+            char seps[] = "|";
+            token = strtok (&str[0],seps);
+            while (token != NULL)
+            {
+              v.push_back(token);
+              token = strtok (NULL, seps);
+            }
+            for ( std::string s : v ) {
+              shift_y += 12;             
+              it.printf(0, shift_y, id(roboto_sml), id(col_white), TextAlign::TOP_LEFT, "%s", s.c_str());
+            }
+
+            it.strftime(0, 450, id(roboto), "%H:%M:%S", id(homeassistant_time).now());
       - id: pageDebug2
         lambda: |-
-            it.graph(0, 75, id(h24_graph));
-            
-
+            it.fill(COLOR_OFF); // Turn the whole display off.
+            it.print(0,0, roboto, "Temp");
+            it.graph(0, 0, id(InternalTemp_graph));
+            it.print(0,155, roboto, "Wifi");
+            it.graph(0, 155, id(wifi_graph));
+            it.print(0, 310, roboto, "loop time");
+            it.graph(0, 310, id(LoopTime_graph));
+            it.strftime(0, 460, id(roboto_sml), "%H:%M:%S", id(homeassistant_time).now());
 
 color:
-  - id: my_blue
+  - id: col_blue
     blue: 100%
-  - id: my_red
+  - id: col_red
     red: 100%
-  - id: my_green
+  - id: col_green
     green: 100%
-  - id: my_white
+  - id: col_white
     red: 100%
     blue: 100%
     green: 100%
-  - id: my_yellow
+  - id: col_yellow
     hex: ffff00      
 
 font:
   - file: "gfonts://Roboto"
     id: roboto
     size: 25
-    glyphs: '|!"%()+=,-_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz'
+    glyphs: '|!"%()+=,-_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz'          
+  - file: "gfonts://Roboto"
+    id: roboto_sml
+    size: 12
+    glyphs: '|!"%()+=,-_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz'          
 
-
-touchscreen:
-  platform: xpt2046
-  calibration_x_min: 3940
-  calibration_x_max: 182
-  calibration_y_min: 242
-  calibration_y_max: 3952
-  id: my_touchscreen
-  spi_id: touch_spi
-  cs_pin: GPIO5
-  interrupt_pin: GPIO17
-  on_touch:
-  - lambda: |-
-        ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
-            touch.x,
-            touch.y,
-            touch.x_raw,
-            touch.y_raw
-            );
-
-
-matrix_keypad:
-  id: keypad
-  columns:
-    - pin: 
-        number: GPIO35 # GPIO34
-        mode: 
-          input: True
-    - pin: 
-        number: GPIO16
-        mode: 
-          input: True
-    - pin: 
-        number: GPIO21
-        mode: 
-          input: True
-    - pin: 
-        number: GPIO3
-        mode: 
-          input: True  
-  rows:
-    - pin: GPIO4
-    - pin: GPIO22
-    - pin: GPIO26
-    - pin: GPIO32
-  keys: "123A456B789C*0#D"
-  has_diodes: false
-
-binary_sensor:
+binary_sensor: 
+  - platform: gpio
+    pin:
+      number: GPIO0
+      inverted: true
+    name: "Onboard button"
+    id: onboard_button
+    on_press: 
+      then:
+        if:
+          condition:
+            display.is_displaying_page: pageDebug1
+          then:      
+            display.page.show: pageDebug2
+          else: 
+            display.page.show: pageDebug1
   - platform: matrix_keypad
     keypad_id: keypad
     id: keypadA
@@ -310,23 +297,7 @@ binary_sensor:
       - display.page.show: pageD
       - component.update: my_display
     on_release:
-      - logger.log: "D Released"    
-
-  - platform: gpio
-    pin:
-      number: GPIO0
-      inverted: true
-    name: "Onboard button"
-    id: onboard_button
-    on_press: 
-      then:
-        if:
-          condition:
-            display.is_displaying_page: pageDebug1
-          then:      
-            display.page.show: pageDebug2
-          else: 
-            display.page.show: pageDebug1
+      - logger.log: "D Released"               
 
 button:
   - platform: template
@@ -342,6 +313,119 @@ button:
           else: 
             display.page.show: pageDebug1
 
+  - platform: template
+    name: Arm
+    entity_category: "diagnostic"     
+    on_press:
+      then:
+        homeassistant.service: 
+          service: script.alarm_arm
+          data:
+            code: !secret keypad_code         
+            
+  - platform: template
+    name: Disarm
+    entity_category: "diagnostic"     
+    on_press:
+      then:
+        homeassistant.service: 
+          service: script.alarm_disarm
+          data:
+            code: !secret keypad_code  
+
+graph:
+  - id: InternalTemp_graph
+    duration: 24h
+    width: 320 
+    height: 150
+    x_grid: 6h
+    y_grid: 10 
+    border: false
+    max_range: 65
+    min_range: 40
+    traces:
+      - sensor: InternalTemp
+        color: col_red       
+  - id: wifi_graph
+    duration: 24h
+    width: 320 
+    height: 150
+    x_grid: 6h
+    y_grid: 10 
+    max_range: 100
+    min_range: 1
+    border: false
+    traces:
+      - sensor: wifi_signal_pct
+        color: col_green      
+  - id: LoopTime_graph
+    duration: 24h
+    width: 320 
+    height: 150
+    x_grid: 6h
+    y_grid: 10 
+    border: false
+    traces:
+      - sensor: LoopTime
+        color: col_blue                            
+
+image:
+  - file: mdi:bell-off 
+    id: img_BellOff 
+    resize: 60x60    
+  - file: mdi:bell
+    id: img_Bell
+    resize: 60x60   
+  - file: mdi:bell-ring
+    id: img_BellRing
+    resize: 60x60             
+
+touchscreen:
+  platform: xpt2046
+  calibration_x_min: 3940
+  calibration_x_max: 182
+  calibration_y_min: 242
+  calibration_y_max: 3952
+  id: my_touchscreen
+  spi_id: touch_spi
+  cs_pin: GPIO22
+  interrupt_pin: GPIO32
+  on_touch:
+  - lambda: |-
+        ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
+            touch.x,
+            touch.y,
+            touch.x_raw,
+            touch.y_raw
+            );
+
+matrix_keypad:
+  id: keypad
+  columns:
+    - pin: 
+        number: GPIO35
+        mode: 
+          input: True
+    - pin: 
+        number: GPIO34
+        mode: 
+          input: True
+    - pin: 
+        number: GPIO39
+        mode: 
+          input: True
+    - pin: 
+        number: GPIO36
+        mode: 
+          input: True  
+  rows:
+    - pin: GPIO02
+    - pin: GPIO04 
+    - pin: GPIO21 
+    - pin: GPIO05 
+  keys: "123A456B789C*0#D"
+  has_diodes: false  
+  
 key_collector:
   - id: pincode_reader
     source_id: keypad
@@ -361,16 +445,4 @@ key_collector:
     on_timeout:
       - logger.log:
           format: "input timeout: '%s', started by '%c'"
-          args: [ 'x.c_str()', "(start == 0 ? '~' : start)" ]
-
-graph:
-  - id: h24_graph
-    duration: 24h
-    width: 320 
-    height: 200
-    x_grid: 6h
-    y_grid: 10 
-    border: false
-    traces:
-      - sensor: InternalTemp
-        color: my_red            
+          args: [ 'x.c_str()', "(start == 0 ? '~' : start)" ]    
