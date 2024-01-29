@@ -143,26 +143,34 @@ display:
 
           // ALARM STATE
           if (id(homeassistant_alarm).state=="disarmed"){
-            it.image(130, 90, id(img_BellOff));
-            it.print(160, 160, id(roboto), id(col_green), TextAlign::CENTER_HORIZONTAL, "Disarmed");
+            it.image(110, 50, id(img_BellOff));
+            it.print(160, 160, id(roboto_lrg), id(col_green), TextAlign::CENTER_HORIZONTAL, "Disarmed");
           } else if (id(homeassistant_alarm).state=="arming"){
-            it.image(130, 90, id(img_Bell));
-            it.print(160, 160, id(roboto), id(col_yellow), TextAlign::CENTER_HORIZONTAL, "Arming");
+            it.image(110, 50, id(img_Bell));
+            it.print(160, 160, id(roboto_lrg), id(col_yellow), TextAlign::CENTER_HORIZONTAL, "Arming");
           } else if (id(homeassistant_alarm).state=="triggered"){
-            it.image(130, 90, id(img_BellRing));
-            it.print(160, 160, id(roboto), id(col_red), TextAlign::CENTER_HORIZONTAL, "Triggered");
+            it.image(110, 50, id(img_BellRing));
+            it.print(160, 160, id(roboto_lrg), id(col_red), TextAlign::CENTER_HORIZONTAL, "Triggered");
           } else if (id(homeassistant_alarm).state.substr(0,5)=="armed"){
-            it.image(130, 90, id(img_Bell));
-            it.print(160, 160, id(roboto), id(col_red), TextAlign::CENTER_HORIZONTAL, id(homeassistant_alarm).state.c_str());
+            it.image(110, 50, id(img_Bell));
+            it.print(160, 160, id(roboto_lrg), id(col_red), TextAlign::CENTER_HORIZONTAL, id(homeassistant_alarm).state.c_str());
           } else {
-            it.print(160, 200, id(roboto), id(col_white), TextAlign::CENTER_HORIZONTAL, id(homeassistant_alarm).state.c_str());
+            it.print(160, 200, id(roboto_lrg), id(col_white), TextAlign::CENTER_HORIZONTAL, id(homeassistant_alarm).state.c_str());
           }
 
           // KEYCODE
-          it.print(160, 240, id(roboto), id(col_white), TextAlign::CENTER_HORIZONTAL, id(g_keypad).c_str());
+          if (id(g_keypad).length() > 0){
+            it.print(160, 220, id(roboto), id(col_white), TextAlign::CENTER_HORIZONTAL, id(g_keypad).c_str());
+          } else {
+            if (id(homeassistant_alarm).state=="disarmed"){
+              it.print(160, 220, id(roboto), id(col_white), TextAlign::CENTER_HORIZONTAL,"Enter Passcode to ARM");
+            } else {
+              it.print(160, 220, id(roboto), id(col_white), TextAlign::CENTER_HORIZONTAL,"Enter Passcode to DISARM");
+            }
+          }
 
           // TIME
-          it.strftime(0, 450, id(roboto), col_blue, "%H:%M:%S", id(homeassistant_time).now());
+          it.strftime(0, 468, id(roboto_sml), col_white, "%H:%M:%S", id(homeassistant_time).now());
       - id: pageB
         lambda: |-
           it.fill(COLOR_OFF); // Turn the whole display off.
@@ -242,6 +250,10 @@ color:
 
 font:
   - file: "gfonts://Roboto"
+    id: roboto_lrg
+    size: 50
+    glyphs: '|!"%()+=,-_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz'   
+  - file: "gfonts://Roboto"
     id: roboto
     size: 25
     glyphs: '|!"%()+=,-_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz'          
@@ -317,26 +329,6 @@ button:
           else: 
             display.page.show: pageDebug1
 
-  - platform: template
-    name: Arm
-    entity_category: "diagnostic"     
-    on_press:
-      then:
-        homeassistant.service: 
-          service: script.alarm_arm
-          data:
-            code: !secret keypad_code         
-            
-  - platform: template
-    name: Disarm
-    entity_category: "diagnostic"     
-    on_press:
-      then:
-        homeassistant.service: 
-          service: script.alarm_disarm
-          data:
-            code: !secret keypad_code  
-
 graph:
   - id: InternalTemp_graph
     duration: 24h
@@ -376,13 +368,13 @@ graph:
 image:
   - file: mdi:bell-off 
     id: img_BellOff 
-    resize: 60x60    
+    resize: 100x100    
   - file: mdi:bell
     id: img_Bell
-    resize: 60x60   
+    resize: 100x100   
   - file: mdi:bell-ring
     id: img_BellRing
-    resize: 60x60             
+    resize: 100x100             
 
 touchscreen:
   platform: xpt2046
@@ -449,7 +441,7 @@ key_collector:
     end_key_required: true 
     clear_keys: "*"
     allowed_keys: "0123456789"
-    #timeout: 60s
+    timeout: 60s
     on_progress:
       - logger.log:
           format: "input progress: '%s', started by '%c'"
@@ -463,13 +455,21 @@ key_collector:
           args: [ 'x.c_str()', "(start == 0 ? '~' : start)", "(end == 0 ? '~' : end)" ]
       - globals.set:
           id: g_keypad
-          value: !lambda "return (x.c_str());"       
-      - homeassistant.service: 
-          service: script.alarm_arm
-          data:
-            code: !lambda "return (x.c_str());"   
-          
-    on_timeout:
-      - logger.log:
-          format: "input timeout: '%s', started by '%c'"
-          args: [ 'x.c_str()', "(start == 0 ? '~' : start)" ]    
+          value: !lambda "return (x.c_str());"    
+      - if:
+          condition:
+            # Checks if "homeassistant_alarm" has state "disarmed" arm else disarm
+            text_sensor.state:
+              id: homeassistant_alarm
+              state: 'disarmed'   
+          then:
+            homeassistant.service: 
+              service: script.alarm_arm
+              data:
+                code: !lambda "return (x.c_str());"   
+          else:
+            homeassistant.service: 
+              service: script.alarm_disarm
+              data:
+                code: !lambda "return (x.c_str());"             
+    
