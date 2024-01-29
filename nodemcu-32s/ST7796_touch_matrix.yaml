@@ -36,7 +36,12 @@ wifi:
 
 captive_portal:
     
-
+globals:
+  - id: g_keypad
+    type: std::string
+    restore_value: no
+    max_restore_data_length: 5
+    initial_value: ''
 
 debug:
   update_interval: 300s
@@ -135,6 +140,8 @@ display:
       - id: pageA
         lambda: |-
           it.fill(COLOR_OFF);
+
+          // ALARM STATE
           if (id(homeassistant_alarm).state=="disarmed"){
             it.image(130, 90, id(img_BellOff));
             it.print(160, 160, id(roboto), id(col_green), TextAlign::CENTER_HORIZONTAL, "Disarmed");
@@ -150,6 +157,11 @@ display:
           } else {
             it.print(160, 200, id(roboto), id(col_white), TextAlign::CENTER_HORIZONTAL, id(homeassistant_alarm).state.c_str());
           }
+
+          // KEYCODE
+          it.print(160, 240, id(roboto), id(col_white), TextAlign::CENTER_HORIZONTAL, id(g_keypad).c_str());
+
+          // TIME
           it.strftime(0, 450, id(roboto), col_blue, "%H:%M:%S", id(homeassistant_time).now());
       - id: pageB
         lambda: |-
@@ -258,46 +270,38 @@ binary_sensor:
     keypad_id: keypad
     id: keypadA
     name: keypadA
+    internal: true
     key: A
     on_press:
-      - logger.log: "A Pressed"
       - display.page.show: pageA
       - component.update: my_display
-    on_release:
-      - logger.log: "A Released"      
   - platform: matrix_keypad
     keypad_id: keypad
     id: keypadB
     name: keypadB  
+    internal: true
     key: B
     on_press:
-      - logger.log: "B Pressed"
       - display.page.show: pageB
       - component.update: my_display
-    on_release:
-      - logger.log: "B Released"        
   - platform: matrix_keypad
     keypad_id: keypad
     id: keypadC
     name: keypadC 
+    internal: true
     key: C
     on_press:
-      - logger.log: "C Pressed"
       - display.page.show: pageC
       - component.update: my_display
-    on_release:
-      - logger.log: "C Released"        
   - platform: matrix_keypad
     keypad_id: keypad
     id: keypadD
     name: keypadD
+    internal: true
     key: D
     on_press:
-      - logger.log: "D Pressed"
       - display.page.show: pageD
       - component.update: my_display
-    on_release:
-      - logger.log: "D Released"               
 
 button:
   - platform: template
@@ -389,7 +393,7 @@ touchscreen:
   id: my_touchscreen
   spi_id: touch_spi
   cs_pin: GPIO22
-  interrupt_pin: GPIO32
+  interrupt_pin: GPIO01
   on_touch:
   - lambda: |-
         ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
@@ -407,7 +411,7 @@ matrix_keypad:
         mode: 
           input: True
     - pin: 
-        number: GPIO34
+        number: GPIO32
         mode: 
           input: True
     - pin: 
@@ -415,14 +419,26 @@ matrix_keypad:
         mode: 
           input: True
     - pin: 
-        number: GPIO36
+        number: GPIO26
         mode: 
           input: True  
   rows:
-    - pin: GPIO02
-    - pin: GPIO04 
-    - pin: GPIO21 
-    - pin: GPIO05 
+    - pin: 
+        number: GPIO02
+        mode: 
+          output: True    
+    - pin:  
+        number: GPIO04
+        mode: 
+          output: True 
+    - pin:  
+        number: GPIO21
+        mode: 
+          output: True     
+    - pin:  
+        number: GPIO05
+        mode: 
+          output: True     
   keys: "123A456B789C*0#D"
   has_diodes: false  
   
@@ -433,15 +449,26 @@ key_collector:
     end_key_required: true 
     clear_keys: "*"
     allowed_keys: "0123456789"
-    timeout: 60s
+    #timeout: 60s
     on_progress:
       - logger.log:
           format: "input progress: '%s', started by '%c'"
           args: [ 'x.c_str()', "(start == 0 ? '~' : start)" ]
+      - globals.set:
+          id: g_keypad
+          value: !lambda "return (x.c_str());"          
     on_result:
       - logger.log:
           format: "input result: '%s', started by '%c', ended by '%c'"
           args: [ 'x.c_str()', "(start == 0 ? '~' : start)", "(end == 0 ? '~' : end)" ]
+      - globals.set:
+          id: g_keypad
+          value: !lambda "return (x.c_str());"       
+      - homeassistant.service: 
+          service: script.alarm_arm
+          data:
+            code: !lambda "return (x.c_str());"   
+          
     on_timeout:
       - logger.log:
           format: "input timeout: '%s', started by '%c'"
