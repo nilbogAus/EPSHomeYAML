@@ -1,6 +1,8 @@
 esphome:
   name: esphome-web-9d4d29
   friendly_name: alarm-panel-backdoor
+  #libraries:
+    #tobozo/LGFXMeter
 
 esp32:
   board: nodemcu-32s
@@ -58,6 +60,11 @@ text_sensor:
     name: "Alarm State"
     id: homeassistant_alarm
     entity_id: alarm_control_panel.home_alarm 
+
+  - platform: homeassistant
+    name: "Net Power"
+    id: net_power
+    entity_id: sensor.net_power
 
 time:
   - platform: homeassistant
@@ -174,8 +181,47 @@ display:
       - id: pageB
         lambda: |-
           it.fill(COLOR_OFF); // Turn the whole display off.
-          it.print(10, 10, id(roboto), id(col_red), TextAlign::TOP_LEFT, "Hello World!");
-          it.rectangle(0, 0, it.get_width(), it.get_height());      
+
+          it.rectangle(0, 0, it.get_width(), it.get_height(), col_green);     
+
+          // guage image
+          it.image(5, 50, id(img_gauge));
+
+          // +- range of guage
+          int range = 7000; 
+
+          // get value and apply limits
+          int value = atoi(id(net_power).state.c_str()); 
+          if(value<(0-range))
+          {
+            value = (0-range);
+          }
+          if(value>(range))
+          {
+            value = range;
+          }
+
+          //draw pointer
+          float radians = M_PI/(range*2)*(value+range);
+          float half_M_PI = M_PI /2;
+          int y_end = 200-(sin(radians) * 130); 
+          int x_end = 160-(cos(radians) * 130);
+          int y_rgt = 200-(sin(radians+(half_M_PI)) * 7); 
+          int x_rgt = 160-(cos(radians+(half_M_PI)) * 7); 
+          int y_left = 200-(sin(radians-(half_M_PI)) * 7); 
+          int x_left = 160-(cos(radians-(half_M_PI)) * 7); 
+
+          //it.filled_rectangle(x_end,x_end, 160,200, x_left,y_left,col_gray);          //change to triangle when nextesphome released
+          it.line(160,200, x_left,y_left, col_gray);
+          it.line(x_end,y_end, x_left,y_left, col_gray);
+
+          //it.filled_rectangle(x_end,x_end, 160,200, x_rgt,y_rgt,col_gray);          //change to triangle when nextesphome released
+          it.line(160,200, x_rgt,y_rgt, col_white);
+          it.line(x_end,y_end, x_rgt,y_rgt, col_white);
+          it.line(160,200, x_end,y_end, col_white);
+
+          // TIME
+          it.strftime(0, 468, id(roboto_sml), col_white, "%H:%M:%S", id(homeassistant_time).now());
       - id: pageC
         lambda: |-
           it.fill(COLOR_OFF); // Turn the whole display off.
@@ -247,6 +293,10 @@ color:
     green: 100%
   - id: col_yellow
     hex: ffff00      
+  - id: col_gray
+    red: 50%
+    blue: 50%
+    green: 50%    
 
 font:
   - file: "gfonts://Roboto"
@@ -328,6 +378,18 @@ button:
             display.page.show: pageDebug2
           else: 
             display.page.show: pageDebug1
+  - platform: template
+    name: Page
+    entity_category: "diagnostic"     
+    on_press:
+      then:
+        if:
+          condition:
+            display.is_displaying_page: pageB
+          then:      
+            display.page.show: pageA
+          else: 
+            display.page.show: pageB            
 
 graph:
   - id: InternalTemp_graph
@@ -375,6 +437,10 @@ image:
   - file: mdi:bell-ring
     id: img_BellRing
     resize: 100x100             
+  - file: "gauge.png"
+    id: img_gauge
+    type: RGB565
+
 
 touchscreen:
   platform: xpt2046
