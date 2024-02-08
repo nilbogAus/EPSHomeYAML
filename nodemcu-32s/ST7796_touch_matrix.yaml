@@ -66,6 +66,11 @@ text_sensor:
     id: net_power
     entity_id: sensor.net_power
 
+  - platform: homeassistant
+    name: "Home Battery Power"
+    id: home_battery_power
+    entity_id: sensor.envoy_121731028504_inverter_121627017873    
+
 time:
   - platform: homeassistant
     id: homeassistant_time    
@@ -182,24 +187,55 @@ display:
         lambda: |-
           it.fill(COLOR_OFF); // Turn the whole display off.
 
-          it.rectangle(0, 0, it.get_width(), it.get_height(), col_green);     
-
           // guage image
           it.image(5, 50, id(img_gauge));
 
           // +- range of guage
           int range = 7000; 
 
-          // get value and apply limits
+          float elec_rate = 0.000077;
+
+          // get value and apply limits and set dyunamic color
           int value = atoi(id(net_power).state.c_str()); 
-          if(value<(0-range))
+          esphome::Color col_dynamic;
+          if(value<0)
           {
-            value = (0-range);
+            elec_rate = 0.000351131;
+            col_dynamic = id(col_red);
+            if(value<(0-range))
+            {
+              value = (0-range);
+            }
           }
-          if(value>(range))
+          else if (value<range/10)
           {
-            value = range;
-          }
+            col_dynamic = id(col_orange);
+          }   
+          else
+          {
+            col_dynamic = id(col_green);
+            if(value>(range))
+            {
+              value = range;
+            }
+
+            //display items running on solar
+            it.print(160,245, id(roboto) ,col_white, TextAlign::CENTER_HORIZONTAL, "Currently powered by Solar");
+            std::queue<std::pair<int, int>> list_locations;
+            for(int i = 280; i<460; i+=15) //create a list of screen locations for items running on solar
+            {
+              list_locations.push(std::make_pair(90,i));
+              list_locations.push(std::make_pair(230,i));
+            }
+            if(atoi(id(home_battery_power).state.c_str())<-10)
+            {
+              it.print(list_locations.front().first ,list_locations.front().second, id(roboto_sml), col_white, TextAlign::CENTER_HORIZONTAL, "House Battery");
+              list_locations.pop();
+            }
+          }  
+
+          //border color
+          it.rectangle(0, 0, it.get_width(), it.get_height(), col_dynamic);                    
 
           //draw pointer
           float radians = M_PI/(range*2)*(value+range);
@@ -211,14 +247,23 @@ display:
           int y_left = 200-(sin(radians-(half_M_PI)) * 7); 
           int x_left = 160-(cos(radians-(half_M_PI)) * 7); 
 
-          //it.filled_rectangle(x_end,x_end, 160,200, x_left,y_left,col_gray);          //change to triangle when nextesphome released
+          //it.filled_rectangle(x_end,x_end, 160,200, x_left,y_left,col_gray);          //change to triangle when next esphome released
           it.line(160,200, x_left,y_left, col_gray);
           it.line(x_end,y_end, x_left,y_left, col_gray);
 
-          //it.filled_rectangle(x_end,x_end, 160,200, x_rgt,y_rgt,col_gray);          //change to triangle when nextesphome released
+          //it.filled_rectangle(x_end,x_end, 160,200, x_rgt,y_rgt,col_gray);          //change to triangle when next esphome released
           it.line(160,200, x_rgt,y_rgt, col_white);
           it.line(x_end,y_end, x_rgt,y_rgt, col_white);
           it.line(160,200, x_end,y_end, col_white);
+
+          //cost/wh test line
+          float cost = atoi(id(net_power).state.c_str())*elec_rate;
+          if (abs(cost)>=1){
+            it.printf(160, 205, id(roboto), col_dynamic, TextAlign::CENTER_HORIZONTAL, "%s watts, $%.2fph", id(net_power).state.c_str(), cost) ;
+          } else {
+            it.printf(160, 205, id(roboto), col_dynamic, TextAlign::CENTER_HORIZONTAL, "%s watts, %.0f¢/ph", id(net_power).state.c_str(), cost*100) ;
+          }
+
 
           // TIME
           it.strftime(0, 468, id(roboto_sml), col_white, "%H:%M:%S", id(homeassistant_time).now());
@@ -282,21 +327,19 @@ display:
 
 color:
   - id: col_blue
-    blue: 100%
+    hex: 0000ff
   - id: col_red
-    red: 100%
+    hex: ff0000
   - id: col_green
-    green: 100%
+    hex: 00ff00
   - id: col_white
-    red: 100%
-    blue: 100%
-    green: 100%
+    hex: ffffff
   - id: col_yellow
-    hex: ffff00      
+    hex: ffff00   
+  - id: col_orange
+    hex: FFA500   
   - id: col_gray
-    red: 50%
-    blue: 50%
-    green: 50%    
+    hex: 6f6f6f   
 
 font:
   - file: "gfonts://Roboto"
@@ -306,7 +349,7 @@ font:
   - file: "gfonts://Roboto"
     id: roboto
     size: 25
-    glyphs: '|!"%()+=,-_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz'          
+    glyphs: '¢$/|!"%()+=,-_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz'          
   - file: "gfonts://Roboto"
     id: roboto_sml
     size: 12
