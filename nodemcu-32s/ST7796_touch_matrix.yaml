@@ -71,6 +71,31 @@ text_sensor:
     id: home_battery_power
     entity_id: sensor.envoy_121731028504_inverter_121627017873    
 
+  - platform: homeassistant
+    name: "Home Battery Power"
+    id: pool_switch
+    entity_id: switch.sonoff_10001e7f40
+
+  - platform: homeassistant
+    name: "Home Battery Power"
+    id: ryobi_batteries_switch
+    entity_id: switch.sonoff_10001e9d60
+
+  - platform: homeassistant
+    name: "EV Power"
+    id: ev_power
+    entity_id: sensor.sonoff_100155a107_power_2
+
+  - platform: homeassistant
+    name: "Pool Cloeaner"
+    id: pool_cleaner
+    entity_id: sensor.creepy_status
+
+  - platform: homeassistant
+    name: "Fridge Express Mode"
+    id: refrigerator_express_mode
+    entity_id: switch.refrigerator_express_mode
+
 time:
   - platform: homeassistant
     id: homeassistant_time    
@@ -207,18 +232,8 @@ display:
               value = (0-range);
             }
           }
-          else if (value<range/10)
-          {
-            col_dynamic = id(col_orange);
-          }   
           else
           {
-            col_dynamic = id(col_green);
-            if(value>(range))
-            {
-              value = range;
-            }
-
             //display items running on solar
             it.print(160,245, id(roboto) ,col_white, TextAlign::CENTER_HORIZONTAL, "Currently powered by Solar");
             std::queue<std::pair<int, int>> list_locations;
@@ -232,7 +247,52 @@ display:
               it.print(list_locations.front().first ,list_locations.front().second, id(roboto_sml), col_white, TextAlign::CENTER_HORIZONTAL, "House Battery");
               list_locations.pop();
             }
-          }  
+            if(id(pool_switch).state=="on")
+            {
+              it.print(list_locations.front().first ,list_locations.front().second, id(roboto_sml), col_white, TextAlign::CENTER_HORIZONTAL, "Pool Pump");
+              list_locations.pop();
+            }
+            if(id(ryobi_batteries_switch).state=="on")
+            {
+              it.print(list_locations.front().first ,list_locations.front().second, id(roboto_sml), col_white, TextAlign::CENTER_HORIZONTAL, "Ryobi Batteries");
+              list_locations.pop();
+            }
+            int ev_power_value = atoi(id(ev_power).state.c_str());
+            if(ev_power_value>0)
+            {
+              it.print(list_locations.front().first ,list_locations.front().second, id(roboto_sml), col_white, TextAlign::CENTER_HORIZONTAL, "EV Charger");
+              list_locations.pop();
+              if(ev_power_value>100){
+                it.print(list_locations.front().first ,list_locations.front().second, id(roboto_sml), col_white, TextAlign::CENTER_HORIZONTAL, "EV (car)");
+                list_locations.pop();
+              }
+            }
+            if(id(pool_cleaner).state=="Cleaning" || id(pool_cleaner).state=="Checking Environment")
+            {
+              it.print(list_locations.front().first ,list_locations.front().second, id(roboto_sml), col_white, TextAlign::CENTER_HORIZONTAL, "Pool Cleaner");
+              list_locations.pop();
+            }
+            if(id(refrigerator_express_mode).state=="on")
+            {
+              it.print(list_locations.front().first ,list_locations.front().second, id(roboto_sml), col_white, TextAlign::CENTER_HORIZONTAL, "Fridge Express Mode");
+              list_locations.pop();
+            }            
+            
+
+            // get value and apply limits and set dyunamic color
+            if (value<range/10)
+            {
+              col_dynamic = id(col_orange);
+            }   
+            else
+            {
+              col_dynamic = id(col_green);
+              if(value>(range))
+              {
+                value = range;
+              }
+            }  
+          }
 
           //border color
           it.rectangle(0, 0, it.get_width(), it.get_height(), col_dynamic);                    
@@ -258,7 +318,7 @@ display:
 
           //cost/wh test line
           float cost = atoi(id(net_power).state.c_str())*elec_rate;
-          if (abs(cost)>=1){
+          if (abs(cost)>0.99){
             it.printf(160, 205, id(roboto), col_dynamic, TextAlign::CENTER_HORIZONTAL, "%s watts, $%.2fph", id(net_power).state.c_str(), cost) ;
           } else {
             it.printf(160, 205, id(roboto), col_dynamic, TextAlign::CENTER_HORIZONTAL, "%s watts, %.0f¢/ph", id(net_power).state.c_str(), cost*100) ;
