@@ -62,16 +62,6 @@ text_sensor:
     entity_id: alarm_control_panel.home_alarm 
 
   - platform: homeassistant
-    name: "Net Power"
-    id: net_power
-    entity_id: sensor.net_power
-
-  - platform: homeassistant
-    name: "Home Battery Power"
-    id: home_battery_power
-    entity_id: sensor.envoy_121731028504_inverter_121627017873    
-
-  - platform: homeassistant
     name: "Home Battery Power"
     id: pool_switch
     entity_id: switch.sonoff_10001e7f40
@@ -80,11 +70,6 @@ text_sensor:
     name: "Home Battery Power"
     id: ryobi_batteries_switch
     entity_id: switch.sonoff_10001e9d60
-
-  - platform: homeassistant
-    name: "EV Power"
-    id: ev_power
-    entity_id: sensor.sonoff_100155a107_power_2
 
   - platform: homeassistant
     name: "Pool Cloeaner"
@@ -147,6 +132,20 @@ sensor:
   - platform: internal_temperature
     name: "Internal Temperature" 
     id: InternalTemp   
+
+  - platform: homeassistant
+    name: "Net Power state"
+    id: net_power
+    entity_id: sensor.net_power
+  - platform: homeassistant
+    name: "Home Battery Power"
+    id: home_battery_power
+    entity_id: sensor.envoy_121731028504_inverter_121627017873        
+  - platform: homeassistant
+    name: "EV Power"
+    id: ev_power
+    entity_id: sensor.sonoff_100155a107_power_2
+
 
 #ST7796 display
 spi:
@@ -221,7 +220,7 @@ display:
           float elec_rate = 0.000077;
 
           // get value and apply limits and set dyunamic color
-          int value = atoi(id(net_power).state.c_str()); 
+          int value = id(net_power).state; 
           esphome::Color col_dynamic;
           if(value<0)
           {
@@ -235,14 +234,14 @@ display:
           else
           {
             //display items running on solar
-            it.print(160,245, id(roboto) ,col_white, TextAlign::CENTER_HORIZONTAL, "Currently powered by Solar");
+            it.print(160,345, id(roboto) ,col_white, TextAlign::CENTER_HORIZONTAL, "Currently powered by Solar");
             std::queue<std::pair<int, int>> list_locations;
-            for(int i = 280; i<460; i+=15) //create a list of screen locations for items running on solar
+            for(int i = 380; i<460; i+=15) //create a list of screen locations for items running on solar
             {
               list_locations.push(std::make_pair(90,i));
               list_locations.push(std::make_pair(230,i));
             }
-            if(atoi(id(home_battery_power).state.c_str())<-10)
+            if(id(home_battery_power).state<-10)
             {
               it.print(list_locations.front().first ,list_locations.front().second, id(roboto_sml), col_white, TextAlign::CENTER_HORIZONTAL, "House Battery");
               list_locations.pop();
@@ -257,12 +256,11 @@ display:
               it.print(list_locations.front().first ,list_locations.front().second, id(roboto_sml), col_white, TextAlign::CENTER_HORIZONTAL, "Ryobi Batteries");
               list_locations.pop();
             }
-            int ev_power_value = atoi(id(ev_power).state.c_str());
-            if(ev_power_value>0)
+            if(id(ev_power).state>0)
             {
               it.print(list_locations.front().first ,list_locations.front().second, id(roboto_sml), col_white, TextAlign::CENTER_HORIZONTAL, "EV Charger");
               list_locations.pop();
-              if(ev_power_value>100){
+              if(id(ev_power).state>100){
                 it.print(list_locations.front().first ,list_locations.front().second, id(roboto_sml), col_white, TextAlign::CENTER_HORIZONTAL, "EV (car)");
                 list_locations.pop();
               }
@@ -317,11 +315,11 @@ display:
           it.line(160,200, x_end,y_end, col_white);
 
           //cost/wh test line
-          float cost = atoi(id(net_power).state.c_str())*elec_rate;
+          float cost = id(net_power).state*elec_rate;
           if (abs(cost)>0.99){
-            it.printf(160, 205, id(roboto), col_dynamic, TextAlign::CENTER_HORIZONTAL, "%s watts, $%.2fph", id(net_power).state.c_str(), cost) ;
+            it.printf(160, 205, id(roboto), col_dynamic, TextAlign::CENTER_HORIZONTAL, "%.0f watts, $%.2fph", id(net_power).state, cost) ;
           } else {
-            it.printf(160, 205, id(roboto), col_dynamic, TextAlign::CENTER_HORIZONTAL, "%s watts, %.0f¢/ph", id(net_power).state.c_str(), cost*100) ;
+            it.printf(160, 205, id(roboto), col_dynamic, TextAlign::CENTER_HORIZONTAL, "%.0f watts, %.0f¢/ph", id(net_power).state, cost*100) ;
           }
 
 
@@ -528,7 +526,9 @@ graph:
     border: false
     traces:
       - sensor: LoopTime
-        color: col_blue                            
+        color: col_blue           
+           
+                                          
 
 image:
   - file: mdi:bell-off 
