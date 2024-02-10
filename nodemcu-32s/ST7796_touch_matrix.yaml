@@ -145,6 +145,10 @@ sensor:
     name: "EV Power"
     id: ev_power
     entity_id: sensor.sonoff_100155a107_power_2
+  - platform: homeassistant
+    name: "Solar Power"
+    id: solar_power
+    entity_id: sensor.envoy_121731028504_current_power_production
 
 
 #ST7796 display
@@ -322,6 +326,9 @@ display:
             it.printf(160, 205, id(roboto), col_dynamic, TextAlign::CENTER_HORIZONTAL, "%.0f watts, %.0f¢/ph", id(net_power).state, cost*100) ;
           }
 
+          //solar graph
+          it.graph(0, 240, id(solar_power_graph));
+          it.print(160, 242, id(roboto_sml), col_dkgreen, TextAlign::CENTER_HORIZONTAL, "Solar");
 
           // TIME
           it.strftime(0, 468, id(roboto_sml), col_white, "%H:%M:%S", id(homeassistant_time).now());
@@ -390,6 +397,8 @@ color:
     hex: ff0000
   - id: col_green
     hex: 00ff00
+  - id: col_dkgreen
+    hex: 008800    
   - id: col_white
     hex: ffffff
   - id: col_yellow
@@ -527,8 +536,19 @@ graph:
     traces:
       - sensor: LoopTime
         color: col_blue           
-           
-                                          
+  - id: solar_power_graph
+    duration: 12h
+    width: 320 
+    height: 100
+    x_grid: 2h
+    y_grid: 2500
+    max_range: 10000
+    min_range: 10000    
+    border: True
+    traces:
+      - sensor: solar_power
+        color: col_green       
+        line_thickness: 1         
 
 image:
   - file: mdi:bell-off 
